@@ -3,6 +3,7 @@ package com.example.demo.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,12 +12,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -24,93 +28,145 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                // Enable CORS and configure CSRF
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for API endpoints, but should be enabled for forms in
-                                              // production
+        // Optional: Add JWT filter if you're using JWT authentication
+        // @Autowired
+        // private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-                // Session Management
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                // CORS Configuration
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Authorization Rules
-                .authorizeHttpRequests(auth -> auth
-                        // Public Endpoints
-                        .requestMatchers("/", "/css/**", "/js/**", "/images/**", "/login", "/api/auth/login")
-                        .permitAll()
+                                // CSRF Protection (Disabled for API, but consider enabling for web forms)
+                                .csrf(csrf -> csrf.disable())
 
-                        // Authenticated Users
-                        .requestMatchers("/request-form", "/request-summary", "/api/requests").authenticated()
+                                // Session Management
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
-                        // Manager & Admin-Only Pages
-                        .requestMatchers("/update-form", "/dashboard", "/api/items/**", "/api/dashboard/**")
-                        .hasAnyAuthority("ROLE_MANAGER", "ROLE_ADMIN")
+                                // Authorization Rules
+                                .authorizeHttpRequests(auth -> auth
+                                                // Public Endpoints (No Authentication Required)
+                                                .requestMatchers(
+                                                                "/",
+                                                                "/index.html",
+                                                                "/error",
+                                                                "/css/**",
+                                                                "/js/**",
+                                                                "/images/**",
+                                                                "/public/**",
+                                                                "/login",
+                                                                "/register",
+                                                                "/api/auth/login",
+                                                                "/api/auth/register",
+                                                                // Permit all item-related endpoints for now
+                                                                "/api/items/**")
+                                                .permitAll()
 
-                        // Admin-Only Pages
-                        .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
+                                                // Authenticated User Endpoints
+                                                .requestMatchers(
+                                                                "/dashboard",
+                                                                "/profile",
+                                                                "/api/requests/**")
+                                                .authenticated()
 
-                        // Approving/Rejecting Requests (Manager & Admin)
-                        .requestMatchers("/api/requests/{id}/approve", "/api/requests/{id}/reject")
-                        .hasAnyAuthority("ROLE_MANAGER", "ROLE_ADMIN")
+                                                // Manager & Admin Endpoints
+                                                .requestMatchers(
+                                                                "/admin/**",
+                                                                "/manager/**",
+                                                                "/api/admin/**",
+                                                                "/api/dashboard/**")
+                                                .hasAnyAuthority("ROLE_MANAGER", "ROLE_ADMIN")
 
-                        // Any Other Request Must Be Authenticated
-                        .anyRequest().authenticated())
+                                                // Admin-Only Endpoints
+                                                .requestMatchers(
+                                                                "/api/users/**",
+                                                                "/api/system/**")
+                                                .hasAuthority("ROLE_ADMIN")
 
-                // Form Login Configuration
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .defaultSuccessUrl("/", true)
-                        .failureUrl("/login?error=true")
-                        .permitAll())
+                                                // Default: All other requests require authentication
+                                                .anyRequest().authenticated())
 
-                // Logout Configuration
-                .logout(logout -> logout
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-                        .logoutSuccessUrl("/login?logout=true")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .permitAll())
+                                // Form Login Configuration
+                                .formLogin(form -> form
+                                                .loginPage("/login")
+                                                .defaultSuccessUrl("/dashboard", true)
+                                                .failureUrl("/login?error=true")
+                                                .permitAll())
 
-                // Security Headers
-                .headers(headers -> headers
-                        .frameOptions(frameOptions -> frameOptions.sameOrigin()));
+                                // Logout Configuration
+                                .logout(logout -> logout
+                                                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                                                .logoutSuccessUrl("/login?logout=true")
+                                                .invalidateHttpSession(true)
+                                                .deleteCookies("JSESSIONID")
+                                                .permitAll())
 
-        return http.build();
-    }
+                                // Security Headers
+                                .headers(headers -> headers
+                                                .frameOptions(frameOptions -> frameOptions.sameOrigin())
+                                                .xssProtection(Customizer.withDefaults())
+                                                .contentSecurityPolicy(csp -> csp
+                                                                .policyDirectives(
+                                                                                "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'")))
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12); // Stronger password encryption
-    }
+                // Optional: Add JWT filter if using JWT
+                // .addFilterBefore(jwtAuthenticationFilter,
+                // UsernamePasswordAuthenticationFilter.class)
+                ;
 
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
+                return http.build();
+        }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:4200", // Frontend
-                "http://localhost:8080" // Backend
-        ));
-        configuration.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "PATCH",
-                "DELETE", "OPTIONS", "HEAD"));
-        configuration.setAllowCredentials(true);
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "Accept"));
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                // BCrypt with 12 rounds of hashing for stronger password encryption
+                return new BCryptPasswordEncoder(12);
+        }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration authenticationConfiguration) throws Exception {
+                return authenticationConfiguration.getAuthenticationManager();
+        }
+
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(List.of(
+                                "http://localhost:4200", // Angular Frontend
+                                "http://localhost:3000", // React Frontend
+                                "http://localhost:8080", // Backend
+                                "http://localhost:8081" // Additional services
+                ));
+                configuration.setAllowedMethods(Arrays.asList(
+                                "GET", "POST", "PUT", "PATCH",
+                                "DELETE", "OPTIONS", "HEAD"));
+                configuration.setAllowCredentials(true);
+                configuration.setAllowedHeaders(Arrays.asList(
+                                "Authorization",
+                                "Content-Type",
+                                "X-Requested-With",
+                                "Accept",
+                                "Origin"));
+                configuration.setExposedHeaders(Collections.singletonList("Authorization"));
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
+
+        // Optional: If you want to add a CORS filter
+        @Bean
+        public CorsFilter corsFilter() {
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowCredentials(true);
+                config.addAllowedOrigin("http://localhost:4200");
+                config.addAllowedHeader("*");
+                config.addAllowedMethod("*");
+                source.registerCorsConfiguration("/**", config);
+                return new CorsFilter(source);
+        }
 }
