@@ -78,7 +78,7 @@ public class ItemRequestController {
         if (approvedRequest != null) {
             return ResponseEntity.ok(approvedRequest);
         }
-        return ResponseEntity.badRequest().build();
+        return ResponseEntity.notFound().build();
     }
     
     @PostMapping("/{id}/reject")

@@ -5,9 +5,10 @@ import com.example.demo.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -41,14 +42,13 @@ public class UserService {
         if (existingUser.isPresent()) {
             User updatedUser = existingUser.get();
             updatedUser.setUsername(user.getUsername());
+            updatedUser.setName(user.getName());
             updatedUser.setRole(user.getRole());
             updatedUser.setDepartment(user.getDepartment());
-
-            // Only update password if it's changed
-            if (!user.getPassword().isEmpty()) {
+            // Only update password if it's provided
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
                 updatedUser.setPassword(passwordEncoder.encode(user.getPassword()));
             }
-
             return userRepository.save(updatedUser);
         } else {
             throw new RuntimeException("User not found");
@@ -76,5 +76,24 @@ public class UserService {
         Optional<User> optionalUser = userRepository.findByUsername(username);
         return optionalUser.map(user -> user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.MANAGER)
                 .orElse(false);
+    }
+
+    // New methods to support the missing endpoints
+
+    public List<String> getAllDepartments() {
+        return userRepository.findAll().stream()
+                .map(User::getDepartment)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    public Map<String, Long> getDepartmentUserCounts() {
+        return userRepository.findAll().stream()
+                .collect(Collectors.groupingBy(User::getDepartment, Collectors.counting()));
+    }
+
+    public Map<String, Long> getRoleCounts() {
+        return userRepository.findAll().stream()
+                .collect(Collectors.groupingBy(user -> user.getRole().toString(), Collectors.counting()));
     }
 }

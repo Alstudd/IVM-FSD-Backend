@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -74,5 +74,22 @@ public class UserController {
     @GetMapping("/check-manager/{username}")
     public ResponseEntity<Boolean> hasManagerAccess(@PathVariable String username) {
         return ResponseEntity.ok(userService.hasManagerAccess(username));
+    }
+
+    // New endpoints to fix the errors
+
+    @GetMapping("/departments")
+    public ResponseEntity<List<String>> getAllDepartments() {
+        return ResponseEntity.ok(userService.getAllDepartments());
+    }
+
+    @GetMapping("/department-counts")
+    public ResponseEntity<Map<String, Long>> getDepartmentUserCounts() {
+        return ResponseEntity.ok(userService.getDepartmentUserCounts());
+    }
+
+    @GetMapping("/role-counts")
+    public ResponseEntity<Map<String, Long>> getRoleCounts() {
+        return ResponseEntity.ok(userService.getRoleCounts());
     }
 }

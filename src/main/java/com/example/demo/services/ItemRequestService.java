@@ -14,7 +14,7 @@ import java.util.Optional;
 public class ItemRequestService {
     @Autowired
     private ItemRequestRepository itemRequestRepository;
-    
+
     @Autowired
     private ItemService itemService;
 
@@ -57,34 +57,35 @@ public class ItemRequestService {
     public Map<String, Long> getRequestsByDepartmentCount() {
         List<Object[]> departmentCounts = itemRequestRepository.countRequestsByDepartment();
         Map<String, Long> departmentCountMap = new HashMap<>();
-        
+
         for (Object[] result : departmentCounts) {
             String department = (String) result[0];
             Long count = (Long) result[1];
             departmentCountMap.put(department, count);
         }
-        
+
         return departmentCountMap;
     }
-    
+
     public ItemRequest approveRequest(Long requestId) {
         Optional<ItemRequest> optionalRequest = itemRequestRepository.findById(requestId);
-        if (optionalRequest.isPresent()) {
-            ItemRequest request = optionalRequest.get();
-            
-            // Check if the item is available in the required quantity
-            if (itemService.checkItemAvailability(request.getItemName(), request.getQuantityRequired())) {
-                request.setStatus(ItemRequest.RequestStatus.APPROVED);
-                
-                // Update the item quantity in inventory
-                itemService.updateItemQuantity(request.getItemName(), -request.getQuantityRequired());
-                
-                return itemRequestRepository.save(request);
-            }
+        if (!optionalRequest.isPresent()) {
+            throw new RuntimeException("Request with ID " + requestId + " not found");
         }
-        return null;
+
+        ItemRequest request = optionalRequest.get();
+
+        // Check if the item is available in the required quantity
+        if (!itemService.checkItemAvailability(request.getItemName(), request.getQuantityRequired())) {
+            throw new RuntimeException("Insufficient quantity available for " + request.getItemName());
+        }
+
+        request.setStatus(ItemRequest.RequestStatus.APPROVED);
+        // Update the item quantity in inventory
+        itemService.updateItemQuantity(request.getItemName(), -request.getQuantityRequired());
+        return itemRequestRepository.save(request);
     }
-    
+
     public ItemRequest rejectRequest(Long requestId) {
         Optional<ItemRequest> optionalRequest = itemRequestRepository.findById(requestId);
         if (optionalRequest.isPresent()) {
@@ -94,11 +95,11 @@ public class ItemRequestService {
         }
         return null;
     }
-    
+
     public List<ItemRequest> getRequestsByRequestor(String requestorName) {
         return itemRequestRepository.findByRequestorName(requestorName);
     }
-    
+
     public Long getTotalRequestsCount() {
         return itemRequestRepository.count();
     }

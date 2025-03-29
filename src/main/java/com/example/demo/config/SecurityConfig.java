@@ -61,14 +61,15 @@ public class SecurityConfig {
                                                                 "/api/auth/login",
                                                                 "/api/auth/register",
                                                                 // Permit all item-related endpoints for now
-                                                                "/api/items/**")
+                                                                "/api/items/**",
+                                                                "/api/requests/**",
+                                                                "/api/users/**")
                                                 .permitAll()
 
                                                 // Authenticated User Endpoints
                                                 .requestMatchers(
                                                                 "/dashboard",
-                                                                "/profile",
-                                                                "/api/requests/**")
+                                                                "/profile")
                                                 .authenticated()
 
                                                 // Manager & Admin Endpoints
@@ -81,7 +82,6 @@ public class SecurityConfig {
 
                                                 // Admin-Only Endpoints
                                                 .requestMatchers(
-                                                                "/api/users/**",
                                                                 "/api/system/**")
                                                 .hasAuthority("ROLE_ADMIN")
 

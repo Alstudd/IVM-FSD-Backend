@@ -73,8 +73,11 @@ public class AuthController {
                 // Create a more structured response
                 LoginResponse loginResponse = new LoginResponse(
                     jwt, 
+                    currentUser.getId(),
                     currentUser.getUsername(), 
-                    currentUser.getRole()
+                    currentUser.getRole(),
+                    currentUser.getName(),
+                    currentUser.getDepartment()
                 );
                 
                 return ResponseEntity.ok(loginResponse);
